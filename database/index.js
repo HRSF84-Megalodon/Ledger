@@ -90,8 +90,34 @@ const Fails = sequelize.define('fails', {
 const write = (obj) => {
   return sequelize.transaction(function (t) {
   //handles payment and cashout
-  if (obj.payer.userId) {
-    return User.create({
+    if (obj.payer.userId) {
+      return User.create({
+          transaction_id: obj.transactionId,
+          first_name: obj.payer.firstName,
+          last_name: obj.payer.lastName,
+          user_id: obj.payer.userId,
+          transaction_type: "debit",
+          amount: obj.amount,
+          transaction_kind: obj.transactionKind,
+          original_time: obj.timestamp,
+          completion_time: moment().format(),
+          status: obj.status
+        }, {transaction: t}).then(function (user) {
+        return User.create({
+          transaction_id: obj.transactionId,
+          first_name: obj.payee.firstName,
+          last_name: obj.payee.lastName,
+          user_id: obj.payee.userId,
+          transaction_type: "credit",
+          amount: obj.amount,
+          transaction_kind: obj.transactionKind,
+          original_time: obj.timestamp,
+          completion_time: moment().format(),
+          status: obj.status
+        }, {transaction: t});
+      });
+    } else {
+      return User.create({
         transaction_id: obj.transactionId,
         first_name: obj.payer.firstName,
         last_name: obj.payer.lastName,
@@ -102,34 +128,8 @@ const write = (obj) => {
         original_time: obj.timestamp,
         completion_time: moment().format(),
         status: obj.status
-      }, {transaction: t}).then(function (user) {
-      return User.create({
-        transaction_id: obj.transactionId,
-        first_name: obj.payee.firstName,
-        last_name: obj.payee.lastName,
-        user_id: obj.payee.userId,
-        transaction_type: "credit",
-        amount: obj.amount,
-        transaction_kind: obj.transactionKind,
-        original_time: obj.timestamp,
-        completion_time: moment().format(),
-        status: obj.status
-      }, {transaction: t});
-    });
-  } else {
-    return User.create({
-      transaction_id: obj.transactionId,
-      first_name: obj.payer.firstName,
-      last_name: obj.payer.lastName,
-      user_id: obj.payer.userId,
-      transaction_type: "debit",
-      amount: obj.amount,
-      transaction_kind: obj.transactionKind,
-      original_time: obj.timestamp,
-      completion_time: moment().format(),
-      status: obj.status
-    })
-  }
+      })
+    }
   }).then(function (result) {
     return true
   }).catch(function (err) {
@@ -161,7 +161,9 @@ const update = (userId, amount) => {
   return Balance.find({ 
       where: { user_id: userId } 
     })
-      .then( async (user) => { return user.updateAttributes({
+      .then( async (user) => { 
+        await user;
+        return user.updateAttributes({
           balance: user.dataValues.balance + amount
         }) 
       })
@@ -171,6 +173,14 @@ const update = (userId, amount) => {
       })
       .catch((err) => {return false })
 }
+
+
+// const f = async () => {
+//   for ( var i = 0; i < 100; i ++) {
+//     let p = await update(4, 1);
+//   }
+// }
+
 
 const addFails = (id) => {
   Fails.create({
