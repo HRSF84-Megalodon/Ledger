@@ -56,17 +56,21 @@ let data = {
   timestamp: new Date() 
 }
 
+let i = 0; 
 
 const consumerObj = {
   queueUrl: 'https://sqs.us-east-2.amazonaws.com/425761756181/megalodon',
   batchSize: 10,
   handleMessage: async (message, done) => {
     if (message) {
+      winston.info('start batch process');
+      i += 1;
       let messageBody = JSON.parse(message.Body);
       let ledgerUpdated = await db.write(messageBody);
       if (ledgerUpdated) { 
         let payeeUpdated = await db.update(messageBody.payee.userId, messageBody.amount);
         let payerUpdated = await db.update(messageBody.payer.userId, -1 * messageBody.amount);
+        winston.info('waited for all database processes');
         let transactionInfo = [{
             transactionId: messageBody.transactionId,
             userId: payeeUpdated.userId,
@@ -102,13 +106,17 @@ const consumerObj = {
 }
 
 const consumer = Consumer.create(consumerObj);
-const consumer2 = Consumer.create(consumerObj);
+// const consumer2 = Consumer.create(consumerObj);
 
 // winston.info('start batch');
 consumer.start();
 // consumer2.start();
 
-setTimeout( () => { consumer.stop(); consumer2.stop(); winston.info('start batch'); } , 3000)
+setTimeout( () => { 
+  consumer.stop();  
+  //consumer2.stop();
+  //winston.info('start batch'); 
+} , 10000)
 
 
 const sendMessage = (data, url, cb) => {
